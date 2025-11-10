@@ -1,4 +1,4 @@
-use crate::application::dtos::{PmsQuery, PmsResponse};
+use crate::application::dtos::{PmsQueryParams, PmsResponse};
 use crate::domain::{entities::Booking, repositories::BookingRepository};
 use anyhow::{Result, anyhow};
 use chrono::{NaiveDate, NaiveTime};
@@ -13,14 +13,14 @@ impl<R: BookingRepository> BookingService<R> {
         Self { repo }
     }
 
-    pub async fn process(&self, query: PmsQuery) -> Result<PmsResponse> {
+    pub async fn process(&self, query: PmsQueryParams) -> Result<PmsResponse> {
         match query.mode.as_str() {
             "checkin" => self.handle_checkin(query).await,
             _ => Err(anyhow!("invalid mode")),
         }
     }
 
-    async fn handle_checkin(&self, query: PmsQuery) -> Result<PmsResponse> {
+    async fn handle_checkin(&self, query: PmsQueryParams) -> Result<PmsResponse> {
         // --- 1️⃣ Input validation ---
         let room = query.room.clone().ok_or_else(|| anyhow!("missing room"))?;
         let pass = query.pass.clone().ok_or_else(|| anyhow!("missing pass"))?;
