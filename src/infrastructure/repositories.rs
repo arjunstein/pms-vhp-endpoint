@@ -21,7 +21,7 @@ impl BookingRepository for MySqlBookingRepository {
             booking.password.clone(),
             booking.password.clone(),
             41,
-            "FN100",
+            booking.folio_number.as_deref().unwrap_or(""),
             booking.checkin_date.and_hms_opt(13, 0, 0),
             booking.checkout_date.and_hms_opt(13, 0, 0),
         )
