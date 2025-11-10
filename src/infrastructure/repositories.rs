@@ -58,4 +58,36 @@ impl BookingRepository for MySqlBookingRepository {
         tx.commit().await?;
         Ok(())
     }
+
+    async fn checkout_repo(&self, booking: &Booking) -> Result<()> {
+        let mut tx: Transaction<'_, MySql> = self.pool.begin().await?;
+
+        // 1️⃣ Delete from radcheck
+        sqlx::query!(
+            "DELETE FROM radcheck WHERE username = ?",
+            booking.room_number
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // 2️⃣ Delete from radusergroup
+        sqlx::query!(
+            "DELETE FROM radusergroup WHERE username = ?",
+            booking.room_number
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // 3️⃣ Delete from hotel_rooms
+        sqlx::query!(
+            "DELETE FROM hotel_rooms WHERE room_number = ?",
+            booking.room_number
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // Commit transaction
+        tx.commit().await?;
+        Ok(())
+    }
 }

@@ -16,6 +16,7 @@ impl<R: BookingRepository> BookingService<R> {
     pub async fn process(&self, query: PmsQueryParams) -> Result<PmsResponse> {
         match query.mode.as_str() {
             "checkin" => self.handle_checkin(query).await,
+            "checkout" => self.handle_checkout(query).await,
             _ => Err(anyhow!("invalid mode")),
         }
     }
@@ -59,13 +60,33 @@ impl<R: BookingRepository> BookingService<R> {
             gtype: query.gtype,
         };
 
-        // --- 4️⃣ Save to DB via repository ---
         self.repo.checkin_repo(&booking).await?;
 
-        // --- 5️⃣ Response ---
         Ok(PmsResponse {
             status: "success".into(),
-            message: format!("Room {} successfully checked in", booking.room_number),
+            message: format!("Room {} successfully checked-in", booking.room_number),
+        })
+    }
+
+    async fn handle_checkout(&self, query: PmsQueryParams) -> Result<PmsResponse> {
+        // --- 1️⃣ Input validation ---
+        let room = query.room.clone().ok_or_else(|| anyhow!("missing room"))?;
+
+        let booking = Booking {
+            room_number: room,
+            password: "".into(),
+            name: None,
+            checkin_date: chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap(),
+            checkout_date: chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap(),
+            folio_number: None,
+            gtype: None,
+        };
+
+        self.repo.checkout_repo(&booking).await?;
+
+        Ok(PmsResponse {
+            status: "success".into(),
+            message: format!("Room {} successfully checked-out", booking.room_number),
         })
     }
 }
