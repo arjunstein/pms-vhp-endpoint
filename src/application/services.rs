@@ -17,7 +17,13 @@ impl<R: BookingRepository> BookingService<R> {
         match query.mode.as_str() {
             "checkin" => self.handle_checkin(query).await,
             "checkout" => self.handle_checkout(query).await,
-            _ => Err(anyhow!("invalid mode")),
+            mode => {
+                tracing::warn!("Invalid mode provided: {}", mode);
+                Ok(PmsResponse {
+                    status: "error".into(),
+                    message: "invalid mode".into(),
+                })
+            }
         }
     }
 
