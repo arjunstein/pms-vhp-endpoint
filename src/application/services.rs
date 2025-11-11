@@ -30,6 +30,7 @@ impl<R: BookingRepository> BookingService<R> {
             Some(r) if !r.is_empty() => r,
             _ => return Err(anyhow!("room is required")),
         };
+
         let pass = match query.pass.clone() {
             Some(p) if !p.is_empty() => p,
             _ => return Err(anyhow!("pass is required")),
@@ -44,6 +45,10 @@ impl<R: BookingRepository> BookingService<R> {
             Some(s) if !s.trim().is_empty() => s.trim(),
             _ => return Err(anyhow!("codate is required")),
         };
+
+        if self.repo.is_room_active(&room).await? {
+            return Err(anyhow!("room {} is in use", room));
+        }
 
         // --- 2️⃣ Parse date/time ---
         let check_in_datetime = NaiveDateTime::parse_from_str(cidate_str, "%d/%m/%Y %H:%M:%S")
@@ -83,13 +88,20 @@ impl<R: BookingRepository> BookingService<R> {
 
         Ok(PmsResponse {
             status: "success".into(),
-            message: format!("Room {} successfully checked-in", booking.room_number),
+            message: format!("room {} successfully checkin", booking.room_number),
         })
     }
 
     async fn handle_checkout(&self, query: PmsQueryParams) -> Result<PmsResponse> {
         // --- 1️⃣ Input validation ---
-        let room = query.room.clone().ok_or_else(|| anyhow!("missing room"))?;
+        let room = match query.room.clone() {
+            Some(r) if !r.is_empty() => r,
+            _ => return Err(anyhow!("room is required")),
+        };
+
+        if !self.repo.is_room_active(&room).await? {
+            return Err(anyhow!("room {} not found for checkout", room));
+        }
 
         let booking = Booking {
             room_number: room,
@@ -105,7 +117,7 @@ impl<R: BookingRepository> BookingService<R> {
 
         Ok(PmsResponse {
             status: "success".into(),
-            message: format!("Room {} successfully checked-out", booking.room_number),
+            message: format!("room {} successfully checkout", booking.room_number),
         })
     }
 }
