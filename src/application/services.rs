@@ -1,7 +1,7 @@
 use crate::application::dtos::{PmsQueryParams, PmsResponse};
 use crate::domain::{entities::Booking, repositories::BookingRepository};
 use anyhow::{Result, anyhow};
-use chrono::{NaiveDate, NaiveTime};
+use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
 use std::sync::Arc;
 
 pub struct BookingService<R: BookingRepository> {
@@ -17,45 +17,64 @@ impl<R: BookingRepository> BookingService<R> {
         match query.mode.as_str() {
             "checkin" => self.handle_checkin(query).await,
             "checkout" => self.handle_checkout(query).await,
-            _ => Err(anyhow!("invalid mode")),
+            mode => {
+                tracing::warn!("Invalid mode provided: {}", mode);
+                Err(anyhow!("invalid mode"))
+            }
         }
     }
 
     async fn handle_checkin(&self, query: PmsQueryParams) -> Result<PmsResponse> {
         // --- 1️⃣ Input validation ---
-        let room = query.room.clone().ok_or_else(|| anyhow!("missing room"))?;
-        let pass = query.pass.clone().ok_or_else(|| anyhow!("missing pass"))?;
-        let cidate = query
-            .cidate
-            .clone()
-            .ok_or_else(|| anyhow!("missing checkin date"))?;
-        let codate = query
-            .codate
-            .clone()
-            .ok_or_else(|| anyhow!("missing checkout date"))?;
+        let room = match query.room.clone() {
+            Some(r) if !r.is_empty() => r,
+            _ => return Err(anyhow!("room is required")),
+        };
+        let pass = match query.pass.clone() {
+            Some(p) if !p.is_empty() => p,
+            _ => return Err(anyhow!("pass is required")),
+        };
+
+        let cidate_str = match &query.cidate {
+            Some(s) if !s.trim().is_empty() => s.trim(),
+            _ => return Err(anyhow!("cidate is required")),
+        };
+
+        let codate_str = match &query.codate {
+            Some(s) if !s.trim().is_empty() => s.trim(),
+            _ => return Err(anyhow!("codate is required")),
+        };
 
         // --- 2️⃣ Parse date/time ---
-        let check_in_date = NaiveDate::parse_from_str(&cidate, "%d/%m/%Y")
+        let check_in_datetime = NaiveDateTime::parse_from_str(cidate_str, "%d/%m/%Y %H:%M:%S")
+            .or_else(|_| {
+                NaiveDate::parse_from_str(cidate_str, "%d/%m/%Y").map(|d| {
+                    let now_time = Local::now().naive_local().time();
+                    d.and_time(now_time)
+                })
+            })
             .map_err(|_| anyhow!("invalid checkin date format"))?;
-        let check_out_date = NaiveDate::parse_from_str(&codate, "%d/%m/%Y")
+
+        let check_out_date = NaiveDate::parse_from_str(codate_str, "%d/%m/%Y")
             .map_err(|_| anyhow!("invalid checkout date format"))?;
 
-        let _check_out_time = if let Some(time_str) = &query.cotime {
-            Some(
+        let check_out_time = match &query.cotime {
+            Some(time_str) if !time_str.trim().is_empty() => {
                 NaiveTime::parse_from_str(time_str, "%H:%M:%S")
-                    .map_err(|_| anyhow!("invalid checkout time format"))?,
-            )
-        } else {
-            None
+                    .map_err(|_| anyhow!("invalid checkout time format"))?
+            }
+            _ => NaiveTime::from_hms_opt(13, 0, 0).unwrap(), // default 13:00:00
         };
+
+        let checkout_datetime = check_out_date.and_time(check_out_time);
 
         // --- 3️⃣ Create domain entity Booking ---
         let booking = Booking {
             room_number: room,
             password: pass,
             name: query.name.clone(),
-            checkin_date: check_in_date,
-            checkout_date: check_out_date,
+            checkin_date: check_in_datetime,
+            checkout_date: checkout_datetime,
             folio_number: query.rsvno.clone(),
             gtype: query.gtype,
         };
@@ -76,8 +95,8 @@ impl<R: BookingRepository> BookingService<R> {
             room_number: room,
             password: "".into(),
             name: None,
-            checkin_date: chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap(),
-            checkout_date: chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap(),
+            checkin_date: Local::now().naive_local(),
+            checkout_date: Local::now().naive_local(),
             folio_number: None,
             gtype: None,
         };

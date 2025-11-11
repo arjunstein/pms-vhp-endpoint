@@ -27,8 +27,8 @@ impl BookingRepository for MySqlBookingRepository {
             booking.password.clone(),
             service_id,
             booking.folio_number.as_deref().unwrap_or(""),
-            booking.checkin_date.and_hms_opt(13, 0, 0),
-            booking.checkout_date.and_hms_opt(13, 0, 0),
+            booking.checkin_date,
+            booking.checkout_date,
         )
         .execute(&mut *tx)
         .await?;
