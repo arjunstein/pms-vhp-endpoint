@@ -1,7 +1,7 @@
 use crate::domain::{entities::Booking, repositories::BookingRepository};
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use sqlx::{Acquire, MySql, MySqlPool, Transaction};
+use sqlx::{MySql, MySqlPool, Transaction};
 
 pub struct MySqlBookingRepository {
     pub pool: MySqlPool,
@@ -12,7 +12,7 @@ impl BookingRepository for MySqlBookingRepository {
     async fn checkin_repo(&self, booking: &Booking) -> Result<()> {
         let mut tx: Transaction<'_, MySql> = self.pool.begin().await?;
 
-        let services = self.get_cron_hotel_service(&mut tx).await?;
+        let services = self.get_cron_hotel_service().await?;
         let (service_id, _) = services
             .get(0)
             .ok_or_else(|| anyhow!("No active hotel service found"))?;
@@ -96,19 +96,15 @@ impl BookingRepository for MySqlBookingRepository {
         Ok(())
     }
 
-    async fn get_cron_hotel_service(
-        &self,
-        tx: &mut Transaction<'_, MySql>,
-    ) -> Result<Vec<(i32, String)>> {
-        let conn = tx.acquire().await?;
+    async fn get_cron_hotel_service(&self) -> Result<Vec<(i32, String)>> {
         let rows = sqlx::query!(
             r#"
-            SELECT id, service_name 
-            FROM services 
-            WHERE cron = 1 AND cron_type = 'hotel'
-            "#
+        SELECT id, service_name 
+        FROM services 
+        WHERE cron = 1 AND cron_type = 'hotel'
+        "#
         )
-        .fetch_all(&mut *conn)
+        .fetch_all(&self.pool)
         .await?;
 
         Ok(rows.into_iter().map(|r| (r.id, r.service_name)).collect())
