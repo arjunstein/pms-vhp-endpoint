@@ -13,7 +13,7 @@ impl BookingRepository for MySqlBookingRepository {
         let mut tx: Transaction<'_, MySql> = self.pool.begin().await?;
 
         let services = self.get_cron_hotel_service().await?;
-        let (service_id, _) = services
+        let (service_id, service_name) = services
             .get(0)
             .ok_or_else(|| anyhow!("No active hotel service found"))?;
 
@@ -44,18 +44,13 @@ impl BookingRepository for MySqlBookingRepository {
         .await?;
 
         // 3) INSERT to radusergroup
-        let group = match booking.gtype.as_deref() {
-            Some("1") => "VIP",
-            _ => "REGULAR",
-        };
-
         sqlx::query!(
             r#"
             INSERT INTO radusergroup (username, groupname, priority, user_type)
             VALUES (?, ?, 1, "hotel-room")
             "#,
             booking.room_number,
-            group
+            service_name
         )
         .execute(&mut *tx)
         .await?;
