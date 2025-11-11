@@ -1,5 +1,5 @@
 use crate::application::{
-    dtos::{PmsQuery, PmsResponse},
+    dtos::{PmsQueryParams, PmsResponse},
     services::BookingService,
 };
 use crate::infrastructure::{database::db_pool, repositories::MySqlBookingRepository};
@@ -14,7 +14,7 @@ pub async fn pms_handler(req: &mut Request, res: &mut Response) {
     let service = BookingService::new(repo);
 
     // 2️⃣ Parse query params to struct
-    let query = match req.parse_queries::<PmsQuery>() {
+    let query = match req.parse_queries::<PmsQueryParams>() {
         Ok(q) => q,
         Err(_) => {
             res.status_code(StatusCode::BAD_REQUEST);

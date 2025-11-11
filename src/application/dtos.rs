@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct PmsQuery {
+pub struct PmsQueryParams {
     pub mode: String,
     pub room: Option<String>,
     #[allow(dead_code)]
