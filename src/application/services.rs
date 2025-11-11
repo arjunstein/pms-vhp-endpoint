@@ -29,8 +29,24 @@ impl<R: BookingRepository> BookingService<R> {
 
     async fn handle_checkin(&self, query: PmsQueryParams) -> Result<PmsResponse> {
         // --- 1️⃣ Input validation ---
-        let room = query.room.clone().ok_or_else(|| anyhow!("missing room"))?;
-        let pass = query.pass.clone().ok_or_else(|| anyhow!("missing pass"))?;
+        let room = match query.room.clone() {
+            Some(r) if !r.is_empty() => r,
+            _ => {
+                return Ok(PmsResponse {
+                    status: "error".into(),
+                    message: "room is required".into(),
+                });
+            }
+        };
+        let pass = match query.pass.clone() {
+            Some(p) if !p.is_empty() => p,
+            _ => {
+                return Ok(PmsResponse {
+                    status: "error".into(),
+                    message: "pass is required".into(),
+                });
+            }
+        };
         let cidate = query
             .cidate
             .clone()
