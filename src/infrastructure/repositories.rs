@@ -104,4 +104,14 @@ impl BookingRepository for MySqlBookingRepository {
 
         Ok(rows.into_iter().map(|r| (r.id, r.service_name)).collect())
     }
+
+    async fn is_room_active(&self, room_number: &str) -> Result<bool> {
+        let (count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM hotel_rooms WHERE room_number = ?")
+                .bind(room_number)
+                .fetch_one(&self.pool)
+                .await?;
+
+        Ok(count > 0)
+    }
 }
