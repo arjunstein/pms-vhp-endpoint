@@ -22,3 +22,12 @@ pub fn get_formatted_name(name: &Option<String>, pass: &Option<String>) -> Strin
         }
     }
 }
+
+pub fn clean_password(password: &str) -> String {
+    password
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect::<String>()
+        .trim()
+        .to_lowercase()
+}

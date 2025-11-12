@@ -1,5 +1,5 @@
 use crate::application::dtos::{PmsQueryParams, PmsResponse};
-use crate::application::utils::string_utils::get_formatted_name;
+use crate::application::utils::string_utils::{clean_password, get_formatted_name};
 use crate::domain::{entities::Booking, repositories::BookingRepository};
 use anyhow::{Result, anyhow};
 use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
@@ -32,7 +32,7 @@ impl<R: BookingRepository> BookingService<R> {
             _ => return Err(anyhow!("room is required")),
         };
 
-        let pass = match query.pass.clone() {
+        let pass_raw = match query.pass.clone() {
             Some(p) if !p.is_empty() => p,
             _ => return Err(anyhow!("pass is required")),
         };
@@ -73,6 +73,8 @@ impl<R: BookingRepository> BookingService<R> {
         };
 
         let checkout_datetime = check_out_date.and_time(check_out_time);
+
+        let pass = clean_password(&pass_raw);
 
         let formatted_name = get_formatted_name(&query.name, &query.pass);
 
