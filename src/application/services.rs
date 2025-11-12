@@ -1,4 +1,5 @@
 use crate::application::dtos::{PmsQueryParams, PmsResponse};
+use crate::application::utils::string_utils::get_formatted_name;
 use crate::domain::{entities::Booking, repositories::BookingRepository};
 use anyhow::{Result, anyhow};
 use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
@@ -73,11 +74,13 @@ impl<R: BookingRepository> BookingService<R> {
 
         let checkout_datetime = check_out_date.and_time(check_out_time);
 
+        let formatted_name = get_formatted_name(&query.name, &query.pass);
+
         // --- 3️⃣ Create domain entity Booking ---
         let booking = Booking {
             room_number: room,
             password: pass,
-            name: query.name.clone(),
+            name: Some(formatted_name.clone()),
             checkin_date: check_in_datetime,
             checkout_date: checkout_datetime,
             folio_number: query.rsvno.clone(),
