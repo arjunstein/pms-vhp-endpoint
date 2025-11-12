@@ -19,12 +19,11 @@ impl BookingRepository for MySqlBookingRepository {
 
         // 1) INSERT to hotel_rooms
         sqlx::query!(
-            r#"INSERT INTO hotel_rooms (room_number, password, name, guest_name, service_id, folio_number, checkin_date, checkout_date, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')"#,
+            r#"INSERT INTO hotel_rooms (room_number, password, name, service_id, folio_number, checkin_date, checkout_date, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'active')"#,
             booking.room_number,
             booking.password,
-            booking.password.clone(),
-            booking.password.clone(),
+            booking.name.as_deref().unwrap_or(""),
             service_id,
             booking.folio_number.as_deref().unwrap_or(""),
             booking.checkin_date,
