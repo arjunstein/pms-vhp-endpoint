@@ -1,8 +1,11 @@
 use crate::application::dtos::{PmsQueryParams, PmsResponse};
-use crate::application::utils::string_utils::{clean_password, get_formatted_name};
+use crate::application::utils::{
+    datetime_utils::{parse_checkin_datetime, parse_checkout_datetime},
+    string_utils::{clean_password, get_formatted_name},
+};
 use crate::domain::{entities::Booking, repositories::BookingRepository};
 use anyhow::{Result, anyhow};
-use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::Local;
 use std::sync::Arc;
 
 pub struct BookingService<R: BookingRepository> {
@@ -52,27 +55,8 @@ impl<R: BookingRepository> BookingService<R> {
         }
 
         // --- 2️⃣ Parse date/time ---
-        let check_in_datetime = NaiveDateTime::parse_from_str(cidate_str, "%d/%m/%Y %H:%M:%S")
-            .or_else(|_| {
-                NaiveDate::parse_from_str(cidate_str, "%d/%m/%Y").map(|d| {
-                    let now_time = Local::now().naive_local().time();
-                    d.and_time(now_time)
-                })
-            })
-            .map_err(|_| anyhow!("invalid checkin date format"))?;
-
-        let check_out_date = NaiveDate::parse_from_str(codate_str, "%d/%m/%Y")
-            .map_err(|_| anyhow!("invalid checkout date format"))?;
-
-        let check_out_time = match &query.cotime {
-            Some(time_str) if !time_str.trim().is_empty() => {
-                NaiveTime::parse_from_str(time_str, "%H:%M:%S")
-                    .map_err(|_| anyhow!("invalid checkout time format"))?
-            }
-            _ => NaiveTime::from_hms_opt(13, 0, 0).unwrap(), // default 13:00:00
-        };
-
-        let checkout_datetime = check_out_date.and_time(check_out_time);
+        let checkin_datetime = parse_checkin_datetime(cidate_str)?;
+        let checkout_datetime = parse_checkout_datetime(codate_str, query.cotime.as_deref())?;
 
         let pass = clean_password(&pass_raw);
 
@@ -83,7 +67,7 @@ impl<R: BookingRepository> BookingService<R> {
             room_number: room,
             password: pass,
             name: Some(formatted_name.clone()),
-            checkin_date: check_in_datetime,
+            checkin_date: checkin_datetime,
             checkout_date: checkout_datetime,
             folio_number: query.rsvno.clone(),
             gtype: query.gtype,
