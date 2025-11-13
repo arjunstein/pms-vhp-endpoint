@@ -1,6 +1,7 @@
 use crate::domain::{entities::Booking, repositories::BookingRepository};
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
+use chrono::Local;
 use sqlx::{MySql, MySqlPool, Transaction};
 
 pub struct MySqlBookingRepository {
@@ -86,6 +87,51 @@ impl BookingRepository for MySqlBookingRepository {
         .await?;
 
         // Commit transaction
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn update_repo(&self, old_room: &str, booking: &Booking) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
+        let now = Local::now().naive_local();
+
+        // --- Update hotel_rooms ---
+        sqlx::query!(
+            r#"
+            UPDATE hotel_rooms
+            SET room_number = ?, password = ?, name = ?, checkin_date = ?, checkout_date = ?, updated_at = ?
+            WHERE room_number = ?
+            "#,
+            booking.room_number,
+            booking.password,
+            booking.name,
+            booking.checkin_date,
+            booking.checkout_date,
+            now,
+            old_room
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // --- Update radcheck ---
+        sqlx::query!(
+            "UPDATE radcheck SET username = ?, value = ? WHERE username = ?",
+            booking.room_number,
+            booking.password,
+            old_room
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // --- Update radusergroup ---
+        sqlx::query!(
+            "UPDATE radusergroup SET username = ? WHERE username = ?",
+            booking.room_number,
+            old_room
+        )
+        .execute(&mut *tx)
+        .await?;
+
         tx.commit().await?;
         Ok(())
     }
