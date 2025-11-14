@@ -6,7 +6,29 @@ use crate::infrastructure::{database::db_pool, repositories::MySqlBookingReposit
 use salvo::prelude::*;
 use std::sync::Arc;
 
-#[handler]
+#[endpoint(
+    parameters(PmsQueryParams),
+    responses(
+        (status_code = 200, body = PmsResponse, description = "Success",
+            example = json!({
+                "status": "success",
+                "message": "room {} successfully checkin|checkout|update",
+            })
+        ),
+        (status_code = 400, body = PmsResponse, description = "Bad Request",
+            example = json!({
+                "status": "error",
+                "message": "invalid query params"
+            })
+        ),
+        (status_code = 500, body = PmsResponse, description = "Internal Server Error",
+            example = json!({
+                "status": "error",
+                "message": "internal server error"
+            })
+        )
+    )
+)]
 pub async fn pms_handler(req: &mut Request, res: &mut Response) {
     // 1️⃣ Get connection pool from depot (shared state)
     let pool = db_pool();
