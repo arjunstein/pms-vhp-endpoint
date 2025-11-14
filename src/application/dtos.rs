@@ -1,10 +1,11 @@
+use salvo::oapi::{ToParameters, ToSchema};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, ToParameters)]
+#[salvo(parameters(default_parameter_in = Query))]
 pub struct PmsQueryParams {
     pub mode: String,
     pub room: Option<String>,
-    #[allow(dead_code)]
     pub oldroom: Option<String>,
     pub name: Option<String>,
     pub pass: Option<String>,
@@ -15,7 +16,7 @@ pub struct PmsQueryParams {
     pub gtype: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PmsResponse {
     pub status: String,
     pub message: String,
