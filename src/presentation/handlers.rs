@@ -26,6 +26,8 @@ pub async fn pms_handler(req: &mut Request, res: &mut Response) {
         }
     };
 
+    let mode = query.mode.clone();
+
     // 3️⃣ Run service logic
     match service.process(query).await {
         Ok(resp) => {
@@ -33,12 +35,12 @@ pub async fn pms_handler(req: &mut Request, res: &mut Response) {
             res.render(Json(resp));
         }
         Err(e) => {
-            tracing::error!("checkin failed: {:?}", e);
             let err_msg = e.to_string();
+            tracing::error!("{} failed: {:?}", mode, err_msg);
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
             res.render(Json(PmsResponse {
                 status: "error".into(),
-                message: err_msg,
+                message: format!("{} failed: {}", mode, err_msg),
             }));
         }
     }
