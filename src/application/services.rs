@@ -1,10 +1,11 @@
 use crate::application::dtos::{PmsQueryParams, PmsResponse};
+use crate::application::errors::ErrorResponse;
 use crate::application::utils::{
     datetime_utils::{parse_checkin_datetime, parse_checkout_datetime},
     string_utils::{clean_password, get_formatted_name},
 };
 use crate::domain::{entities::Booking, repositories::BookingRepository};
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use chrono::Local;
 use std::sync::Arc;
 
@@ -17,41 +18,44 @@ impl<R: BookingRepository> BookingService<R> {
         Self { repo }
     }
 
-    pub async fn process(&self, query: PmsQueryParams) -> Result<PmsResponse> {
+    pub async fn process(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         match query.mode.as_str() {
             "checkin" => self.handle_checkin(query).await,
             "checkout" => self.handle_checkout(query).await,
             "update" => self.handle_update(query).await,
             mode => {
-                tracing::warn!("Invalid mode provided: {}", mode);
-                Err(anyhow!("invalid mode"))
+                tracing::error!("invalid mode {}", mode);
+                Err(ErrorResponse::Validation(format!("invalid mode {}", mode)))
             }
         }
     }
 
-    async fn handle_checkin(&self, query: PmsQueryParams) -> Result<PmsResponse> {
+    async fn handle_checkin(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         let room = match query.room.clone() {
             Some(r) if !r.is_empty() => r,
-            _ => return Err(anyhow!("room is required")),
+            _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
         let pass_raw = match query.pass.clone() {
             Some(p) if !p.is_empty() => p,
-            _ => return Err(anyhow!("pass is required")),
+            _ => return Err(ErrorResponse::Validation("pass is required".into())),
         };
 
         let cidate_str = match &query.cidate {
             Some(s) if !s.trim().is_empty() => s.trim(),
-            _ => return Err(anyhow!("cidate is required")),
+            _ => return Err(ErrorResponse::Validation("cidate is required".into())),
         };
 
         let codate_str = match &query.codate {
             Some(s) if !s.trim().is_empty() => s.trim(),
-            _ => return Err(anyhow!("codate is required")),
+            _ => return Err(ErrorResponse::Validation("codate is required".into())),
         };
 
         if self.repo.is_room_active(&room).await? {
-            return Err(anyhow!("room {} is in use", room));
+            return Err(ErrorResponse::Validation(format!(
+                "room {} is in use",
+                room
+            )));
         }
 
         let checkin_datetime = parse_checkin_datetime(cidate_str)?;
@@ -79,14 +83,17 @@ impl<R: BookingRepository> BookingService<R> {
         })
     }
 
-    async fn handle_checkout(&self, query: PmsQueryParams) -> Result<PmsResponse> {
+    async fn handle_checkout(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         let room = match query.room.clone() {
             Some(r) if !r.is_empty() => r,
-            _ => return Err(anyhow!("room is required")),
+            _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
         if !self.repo.is_room_active(&room).await? {
-            return Err(anyhow!("room {} not found for checkout", room));
+            return Err(ErrorResponse::NotFound(format!(
+                "room {} not found for checkout",
+                room
+            )));
         }
 
         let booking = Booking {
@@ -107,38 +114,44 @@ impl<R: BookingRepository> BookingService<R> {
         })
     }
 
-    async fn handle_update(&self, query: PmsQueryParams) -> Result<PmsResponse> {
+    async fn handle_update(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         let new_room = match query.room.clone() {
             Some(r) if !r.is_empty() => r,
-            _ => return Err(anyhow!("room is required")),
+            _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
         let old_room_opt = query.oldroom.clone();
 
         let pass_raw = match query.pass.clone() {
             Some(p) if !p.is_empty() => p,
-            _ => return Err(anyhow!("pass is required")),
+            _ => return Err(ErrorResponse::Validation("pass is required".into())),
         };
 
         let cidate_str = match &query.cidate {
             Some(s) if !s.trim().is_empty() => s.trim(),
-            _ => return Err(anyhow!("cidate is required")),
+            _ => return Err(ErrorResponse::Validation("cidate is required".into())),
         };
 
         let codate_str = match &query.codate {
             Some(s) if !s.trim().is_empty() => s.trim(),
-            _ => return Err(anyhow!("codate is required")),
+            _ => return Err(ErrorResponse::Validation("codate is required".into())),
         };
 
         let old_room = old_room_opt.unwrap_or_else(|| new_room.clone());
         let is_change_room = old_room != new_room;
 
         if !self.repo.is_room_active(&old_room).await? {
-            return Err(anyhow!("room {} not found for update", old_room));
+            return Err(ErrorResponse::NotFound(format!(
+                "room {} not found for update",
+                old_room
+            )));
         }
 
         if is_change_room && self.repo.is_room_active(&new_room).await? {
-            return Err(anyhow!("target room {} is already in use", new_room));
+            return Err(ErrorResponse::Validation(format!(
+                "target room {} is already in use",
+                new_room
+            )));
         }
 
         let check_in_datetime = parse_checkin_datetime(cidate_str)?;
