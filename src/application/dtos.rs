@@ -9,7 +9,7 @@ pub struct PmsQueryParams {
     pub oldroom: Option<String>,
     pub name: Option<String>,
     pub pass: Option<String>,
-    pub rsvno: Option<String>,
+    pub rvno: Option<String>,
     pub cidate: Option<String>,
     pub codate: Option<String>,
     pub cotime: Option<String>,
