@@ -71,7 +71,7 @@ impl<R: BookingRepository> BookingService<R> {
             name: Some(formatted_name.clone()),
             checkin_date: checkin_datetime,
             checkout_date: checkout_datetime,
-            folio_number: query.rsvno.clone(),
+            folio_number: query.rvno.clone(),
             gtype: query.gtype,
         };
 
@@ -166,7 +166,7 @@ impl<R: BookingRepository> BookingService<R> {
             name: Some(formatted_name.clone()),
             checkin_date: check_in_datetime,
             checkout_date: checkout_datetime,
-            folio_number: query.rsvno.clone(),
+            folio_number: query.rvno.clone(),
             gtype: query.gtype.clone(),
         };
 
