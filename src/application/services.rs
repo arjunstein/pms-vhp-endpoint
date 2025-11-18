@@ -32,12 +32,12 @@ impl<R: BookingRepository> BookingService<R> {
 
     async fn handle_checkin(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         let room = match query.room.clone() {
-            Some(r) if !r.is_empty() => r,
+            r if !r.trim().is_empty() => r,
             _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
         let pass_raw = match query.pass.clone() {
-            Some(p) if !p.is_empty() => p,
+            Some(p) if !p.trim().is_empty() => p,
             _ => return Err(ErrorResponse::Validation("pass is required".into())),
         };
 
@@ -85,7 +85,7 @@ impl<R: BookingRepository> BookingService<R> {
 
     async fn handle_checkout(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         let room = match query.room.clone() {
-            Some(r) if !r.is_empty() => r,
+            r if !r.trim().is_empty() => r,
             _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
@@ -116,7 +116,7 @@ impl<R: BookingRepository> BookingService<R> {
 
     async fn handle_update(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         let new_room = match query.room.clone() {
-            Some(r) if !r.is_empty() => r,
+            r if !r.trim().is_empty() => r,
             _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
