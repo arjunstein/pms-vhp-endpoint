@@ -8,6 +8,8 @@ use salvo::prelude::*;
 use std::sync::Arc;
 
 #[endpoint(
+    tags("Params"),
+    description = "Handle PMS requests for check-in, check-out, and room updates",
     parameters(PmsQueryParams),
     responses(
         (status_code = 200, body = PmsResponse, description = "success", example = json!({
