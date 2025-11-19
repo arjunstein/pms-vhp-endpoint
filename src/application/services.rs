@@ -32,23 +32,25 @@ impl<R: BookingRepository> BookingService<R> {
 
     async fn handle_checkin(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         let room = match query.room.clone() {
-            Some(r) if !r.is_empty() => r,
+            r if !r.trim().is_empty() => r,
             _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
-        let pass_raw = match query.pass.clone() {
-            Some(p) if !p.is_empty() => p,
-            _ => return Err(ErrorResponse::Validation("pass is required".into())),
+        let pass = match &query.pass {
+            Some(p) if !p.trim().is_empty() => Some(clean_password(p)),
+            _ => None,
         };
 
-        let cidate_str = match &query.cidate {
-            Some(s) if !s.trim().is_empty() => s.trim(),
-            _ => return Err(ErrorResponse::Validation("cidate is required".into())),
+        let checkin_datetime = match &query.cidate {
+            Some(s) if !s.trim().is_empty() => parse_checkin_datetime(s.trim())?,
+            _ => Local::now().naive_local(),
         };
 
-        let codate_str = match &query.codate {
-            Some(s) if !s.trim().is_empty() => s.trim(),
-            _ => return Err(ErrorResponse::Validation("codate is required".into())),
+        let checkout_datetime = match &query.codate {
+            Some(s) if !s.trim().is_empty() => {
+                parse_checkout_datetime(s.trim(), query.cotime.as_deref())?
+            }
+            _ => Local::now().naive_local(),
         };
 
         if self.repo.is_room_active(&room).await? {
@@ -57,11 +59,6 @@ impl<R: BookingRepository> BookingService<R> {
                 room
             )));
         }
-
-        let checkin_datetime = parse_checkin_datetime(cidate_str)?;
-        let checkout_datetime = parse_checkout_datetime(codate_str, query.cotime.as_deref())?;
-
-        let pass = clean_password(&pass_raw);
 
         let formatted_name = get_formatted_name(&query.name, &query.pass);
 
@@ -85,7 +82,7 @@ impl<R: BookingRepository> BookingService<R> {
 
     async fn handle_checkout(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         let room = match query.room.clone() {
-            Some(r) if !r.is_empty() => r,
+            r if !r.trim().is_empty() => r,
             _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
@@ -98,7 +95,7 @@ impl<R: BookingRepository> BookingService<R> {
 
         let booking = Booking {
             room_number: room,
-            password: "".into(),
+            password: Some("".to_string()),
             name: None,
             checkin_date: Local::now().naive_local(),
             checkout_date: Local::now().naive_local(),
@@ -116,25 +113,27 @@ impl<R: BookingRepository> BookingService<R> {
 
     async fn handle_update(&self, query: PmsQueryParams) -> Result<PmsResponse, ErrorResponse> {
         let new_room = match query.room.clone() {
-            Some(r) if !r.is_empty() => r,
+            r if !r.trim().is_empty() => r,
             _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
         let old_room_opt = query.oldroom.clone();
 
-        let pass_raw = match query.pass.clone() {
-            Some(p) if !p.is_empty() => p,
-            _ => return Err(ErrorResponse::Validation("pass is required".into())),
+        let pass = match &query.pass {
+            Some(p) if !p.trim().is_empty() => Some(clean_password(p)),
+            _ => None,
         };
 
-        let cidate_str = match &query.cidate {
-            Some(s) if !s.trim().is_empty() => s.trim(),
-            _ => return Err(ErrorResponse::Validation("cidate is required".into())),
+        let checkin_datetime = match &query.cidate {
+            Some(s) if !s.trim().is_empty() => parse_checkin_datetime(s.trim())?,
+            _ => Local::now().naive_local(),
         };
 
-        let codate_str = match &query.codate {
-            Some(s) if !s.trim().is_empty() => s.trim(),
-            _ => return Err(ErrorResponse::Validation("codate is required".into())),
+        let checkout_datetime = match &query.codate {
+            Some(s) if !s.trim().is_empty() => {
+                parse_checkout_datetime(s.trim(), query.cotime.as_deref())?
+            }
+            _ => Local::now().naive_local(),
         };
 
         let old_room = old_room_opt.unwrap_or_else(|| new_room.clone());
@@ -154,17 +153,13 @@ impl<R: BookingRepository> BookingService<R> {
             )));
         }
 
-        let check_in_datetime = parse_checkin_datetime(cidate_str)?;
-        let checkout_datetime = parse_checkout_datetime(codate_str, query.cotime.as_deref())?;
-
-        let pass = clean_password(&pass_raw);
         let formatted_name = get_formatted_name(&query.name, &query.pass);
 
         let booking = Booking {
             room_number: new_room.clone(),
             password: pass,
             name: Some(formatted_name.clone()),
-            checkin_date: check_in_datetime,
+            checkin_date: checkin_datetime,
             checkout_date: checkout_datetime,
             folio_number: query.rvno.clone(),
             gtype: query.gtype.clone(),

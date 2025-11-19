@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 #[salvo(parameters(default_parameter_in = Query))]
 pub struct PmsQueryParams {
     pub mode: String,
-    pub room: Option<String>,
-    pub oldroom: Option<String>,
-    pub name: Option<String>,
+    pub room: String,
     pub pass: Option<String>,
-    pub rvno: Option<String>,
     pub cidate: Option<String>,
     pub codate: Option<String>,
     pub cotime: Option<String>,
+    pub oldroom: Option<String>,
+    pub name: Option<String>,
+    pub rvno: Option<String>,
     pub gtype: Option<String>,
 }
 
