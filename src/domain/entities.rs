@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Booking {
     pub room_number: String,
-    pub password: String,
+    pub password: Option<String>,
     pub name: Option<String>,
     pub folio_number: Option<String>,
     pub checkin_date: NaiveDateTime,

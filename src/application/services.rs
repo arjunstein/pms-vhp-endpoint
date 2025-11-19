@@ -36,9 +36,9 @@ impl<R: BookingRepository> BookingService<R> {
             _ => return Err(ErrorResponse::Validation("room is required".into())),
         };
 
-        let pass_raw = match query.pass.clone() {
-            Some(p) if !p.trim().is_empty() => p,
-            _ => return Err(ErrorResponse::Validation("pass is required".into())),
+        let pass = match &query.pass {
+            Some(p) if !p.trim().is_empty() => Some(clean_password(p)),
+            _ => None,
         };
 
         let cidate_str = match &query.cidate {
@@ -60,8 +60,6 @@ impl<R: BookingRepository> BookingService<R> {
 
         let checkin_datetime = parse_checkin_datetime(cidate_str)?;
         let checkout_datetime = parse_checkout_datetime(codate_str, query.cotime.as_deref())?;
-
-        let pass = clean_password(&pass_raw);
 
         let formatted_name = get_formatted_name(&query.name, &query.pass);
 
@@ -98,7 +96,7 @@ impl<R: BookingRepository> BookingService<R> {
 
         let booking = Booking {
             room_number: room,
-            password: "".into(),
+            password: Some("".to_string()),
             name: None,
             checkin_date: Local::now().naive_local(),
             checkout_date: Local::now().naive_local(),
@@ -122,9 +120,9 @@ impl<R: BookingRepository> BookingService<R> {
 
         let old_room_opt = query.oldroom.clone();
 
-        let pass_raw = match query.pass.clone() {
-            Some(p) if !p.is_empty() => p,
-            _ => return Err(ErrorResponse::Validation("pass is required".into())),
+        let pass = match &query.pass {
+            Some(p) if !p.trim().is_empty() => Some(clean_password(p)),
+            _ => None,
         };
 
         let cidate_str = match &query.cidate {
@@ -157,7 +155,6 @@ impl<R: BookingRepository> BookingService<R> {
         let check_in_datetime = parse_checkin_datetime(cidate_str)?;
         let checkout_datetime = parse_checkout_datetime(codate_str, query.cotime.as_deref())?;
 
-        let pass = clean_password(&pass_raw);
         let formatted_name = get_formatted_name(&query.name, &query.pass);
 
         let booking = Booking {
