@@ -23,10 +23,7 @@ impl<R: BookingRepository> BookingService<R> {
             "checkin" => self.handle_checkin(query).await,
             "checkout" => self.handle_checkout(query).await,
             "update" => self.handle_update(query).await,
-            mode => {
-                tracing::error!("invalid mode {}", mode);
-                Err(ErrorResponse::Validation(format!("invalid mode {}", mode)))
-            }
+            mode => Err(ErrorResponse::Validation(format!("invalid mode {}", mode))),
         }
     }
 
@@ -74,6 +71,12 @@ impl<R: BookingRepository> BookingService<R> {
 
         self.repo.checkin_repo(&booking).await?;
 
+        tracing::info!(
+            "checkin success sending params room {} ({})",
+            booking.room_number,
+            formatted_name
+        );
+
         Ok(PmsResponse {
             status: "success".into(),
             message: format!("room {} successfully checkin", booking.room_number),
@@ -104,6 +107,7 @@ impl<R: BookingRepository> BookingService<R> {
         };
 
         self.repo.checkout_repo(&booking).await?;
+        tracing::info!("checkout success: room {}", booking.room_number);
 
         Ok(PmsResponse {
             status: "success".into(),
@@ -172,6 +176,8 @@ impl<R: BookingRepository> BookingService<R> {
         } else {
             format!("room {} successfully updated", new_room)
         };
+
+        tracing::info!("update success: {}", msg);
 
         Ok(PmsResponse {
             status: "success".into(),
