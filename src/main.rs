@@ -4,6 +4,8 @@ use presentation::routes::router;
 use salvo::prelude::*;
 use std::env;
 
+use crate::application::utils::logger::init_logger;
+
 mod application;
 mod domain;
 mod infrastructure;
@@ -13,7 +15,7 @@ mod presentation;
 async fn main() {
     dotenv().ok();
 
-    tracing_subscriber::fmt().init();
+    init_logger();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     init_db_pool(&database_url)

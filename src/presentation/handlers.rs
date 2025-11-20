@@ -8,6 +8,8 @@ use salvo::prelude::*;
 use std::sync::Arc;
 
 #[endpoint(
+    tags("Params"),
+    description = "Handle PMS requests for check-in, check-out, and room updates",
     parameters(PmsQueryParams),
     responses(
         (status_code = 200, body = PmsResponse, description = "success", example = json!({
@@ -36,6 +38,7 @@ pub async fn pms_handler(req: &mut Request, res: &mut Response) {
     let query = match req.parse_queries::<PmsQueryParams>() {
         Ok(q) => q,
         Err(_) => {
+            tracing::warn!("400: invalid query params");
             res.status_code(StatusCode::BAD_REQUEST);
             res.render(Json(PmsResponse {
                 status: "error".into(),
@@ -52,6 +55,7 @@ pub async fn pms_handler(req: &mut Request, res: &mut Response) {
         }
 
         Err(ErrorResponse::Validation(msg)) => {
+            tracing::warn!("400: {}", msg);
             res.status_code(StatusCode::BAD_REQUEST);
             res.render(Json(PmsResponse {
                 status: "error".into(),
@@ -60,6 +64,7 @@ pub async fn pms_handler(req: &mut Request, res: &mut Response) {
         }
 
         Err(ErrorResponse::NotFound(msg)) => {
+            tracing::warn!("404: {}", msg);
             res.status_code(StatusCode::NOT_FOUND);
             res.render(Json(PmsResponse {
                 status: "error".into(),
@@ -68,6 +73,7 @@ pub async fn pms_handler(req: &mut Request, res: &mut Response) {
         }
 
         Err(ErrorResponse::InternalServerErr(msg)) => {
+            tracing::error!("500: {}", msg);
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
             res.render(Json(PmsResponse {
                 status: "error".into(),

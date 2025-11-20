@@ -7,7 +7,8 @@ edition = "2024"
 salvo = { version = "0.80.0", features = ["oapi"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
 serde = { version = "1", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 serde_json = "1"

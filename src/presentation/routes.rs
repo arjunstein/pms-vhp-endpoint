@@ -5,7 +5,7 @@ use salvo::prelude::*;
 pub fn router() -> Router {
     let api_router = Router::with_path("/vhp").get(pms_handler);
 
-    let doc = OpenApi::default().merge_router(&api_router);
+    let doc = OpenApi::new("VHP API Documentation", "").merge_router(&api_router);
 
     Router::new()
         .push(api_router)
