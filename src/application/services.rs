@@ -1,5 +1,6 @@
 use crate::application::dtos::{PmsQueryParams, PmsResponse};
 use crate::application::errors::ErrorResponse;
+use crate::application::utils::logger::log_success;
 use crate::application::utils::{
     datetime_utils::{parse_checkin_datetime, parse_checkout_datetime},
     string_utils::{clean_password, get_formatted_name},
@@ -59,6 +60,10 @@ impl<R: BookingRepository> BookingService<R> {
 
         let formatted_name = get_formatted_name(&query.name, &query.pass);
 
+        // log checkin params success
+        log_success(&query, &room, &pass);
+        tracing::info!("room {} added", room);
+
         let booking = Booking {
             room_number: room,
             password: pass,
@@ -70,12 +75,6 @@ impl<R: BookingRepository> BookingService<R> {
         };
 
         self.repo.checkin_repo(&booking).await?;
-
-        tracing::info!(
-            "checkin success sending params room {} ({})",
-            booking.room_number,
-            formatted_name
-        );
 
         Ok(PmsResponse {
             status: "success".into(),
@@ -96,6 +95,9 @@ impl<R: BookingRepository> BookingService<R> {
             )));
         }
 
+        log_success(&query, &room, &query.pass);
+        tracing::info!("room {} removed", room);
+
         let booking = Booking {
             room_number: room,
             password: Some("".to_string()),
@@ -107,7 +109,6 @@ impl<R: BookingRepository> BookingService<R> {
         };
 
         self.repo.checkout_repo(&booking).await?;
-        tracing::info!("checkout success: room {}", booking.room_number);
 
         Ok(PmsResponse {
             status: "success".into(),
@@ -177,7 +178,12 @@ impl<R: BookingRepository> BookingService<R> {
             format!("room {} successfully updated", new_room)
         };
 
-        tracing::info!("update success: {}", msg);
+        log_success(&query, &new_room, &query.pass);
+        if is_change_room {
+            tracing::info!("room {} updated to {}", old_room, new_room);
+        } else {
+            tracing::info!("room {} updated", new_room);
+        }
 
         Ok(PmsResponse {
             status: "success".into(),
