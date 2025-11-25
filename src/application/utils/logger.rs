@@ -3,17 +3,20 @@ use once_cell::sync::OnceCell;
 use std::fs::{OpenOptions, create_dir_all};
 use tracing::info;
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{
+    EnvFilter, Layer, filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt,
+};
 
 use crate::application::dtos::PmsQueryParams;
 
 static FILE_GUARD: OnceCell<WorkerGuard> = OnceCell::new();
+static DISCONNECT_GUARD: OnceCell<WorkerGuard> = OnceCell::new();
 
 struct LocalTimer;
 
 impl fmt::time::FormatTime for LocalTimer {
     fn format_time(&self, w: &mut fmt::format::Writer) -> std::fmt::Result {
-        let now = Local::now(); // pakai WIB otomatis jika OS sudah timezone Asia/Jakarta
+        let now = Local::now();
         write!(w, "{}", now.format("%Y-%m-%d %H:%M:%S"))
     }
 }
@@ -22,33 +25,55 @@ pub fn init_logger() {
     let _ = create_dir_all("logs");
 
     let date = Local::now().format("%Y-%m-%d");
-    let file_path = format!("logs/apilog_{}.log", date);
 
-    let file = OpenOptions::new()
+    // Writer APILOG
+    let file_api = OpenOptions::new()
         .append(true)
         .create(true)
-        .open(file_path)
+        .open(format!("logs/apilog_{}.log", date))
         .unwrap();
 
-    let (writer, guard) = tracing_appender::non_blocking(file);
+    let (writer_api, guard_api) = tracing_appender::non_blocking(file_api);
+    let _ = FILE_GUARD.set(guard_api);
 
-    let _ = FILE_GUARD.set(guard);
+    // Writer DISCONNECT
+    let file_disconnect = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(format!("logs/disconnect_{}.log", date))
+        .unwrap();
 
+    let (writer_disc, guard_disc) = tracing_appender::non_blocking(file_disconnect);
+    let _ = DISCONNECT_GUARD.set(guard_disc);
+
+    let env_filter = EnvFilter::new("info");
+
+    // LAYER APILOG
+    let layer_api = fmt::layer()
+        .with_writer(writer_api)
+        .with_ansi(false)
+        .with_timer(LocalTimer)
+        .with_target(false);
+
+    // LAYER DISCONNECT
+    let layer_disconnect = fmt::layer()
+        .with_writer(writer_disc)
+        .with_ansi(false)
+        .with_timer(LocalTimer)
+        .with_target(false)
+        .with_filter(Targets::new().with_target("disconnect", tracing::Level::INFO));
+
+    // CONSOLE
     let console_layer = fmt::layer()
         .with_writer(std::io::stdout)
         .with_timer(LocalTimer)
         .with_target(false);
-    let file_layer = fmt::layer()
-        .with_ansi(false)
-        .with_writer(writer)
-        .with_target(false)
-        .with_timer(LocalTimer);
 
-    let env_filter = EnvFilter::new("info");
-
+    // 🔥 GABUNG semua layer —> init SEKALI SAJA!
     tracing_subscriber::registry()
         .with(console_layer)
-        .with(file_layer)
+        .with(layer_api)
+        .with(layer_disconnect)
         .with(env_filter)
         .init();
 }
