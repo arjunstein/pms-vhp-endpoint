@@ -23,7 +23,7 @@ impl BookingRepository for MySqlBookingRepository {
             r#"INSERT INTO hotel_rooms (room_number, password, name, service_id, folio_number, checkin_date, checkout_date, status)
              VALUES (?, ?, ?, ?, ?, ?, ?, 'active')"#,
             booking.room_number,
-            booking.password,
+            booking.password.as_deref().unwrap_or(""),
             booking.name.as_deref().unwrap_or(""),
             service_id,
             booking.folio_number.as_deref().unwrap_or(""),
@@ -38,7 +38,7 @@ impl BookingRepository for MySqlBookingRepository {
             r#"INSERT INTO radcheck (username, attribute, op, value)
              VALUES (?, 'Cleartext-Password', ':=', ?)"#,
             booking.room_number,
-            booking.password
+            booking.password.as_deref().unwrap_or(""),
         )
         .execute(&mut *tx)
         .await?;
@@ -99,7 +99,7 @@ impl BookingRepository for MySqlBookingRepository {
         sqlx::query!(
             r#"
             UPDATE hotel_rooms
-            SET room_number = ?, password = ?, name = ?, checkin_date = ?, checkout_date = ?, updated_at = ?
+            SET room_number = ?, password = COALESCE(?, password), name = COALESCE(?, name), checkin_date = ?, checkout_date = ?, updated_at = ?
             WHERE room_number = ?
             "#,
             booking.room_number,
@@ -115,7 +115,7 @@ impl BookingRepository for MySqlBookingRepository {
 
         // --- Update radcheck ---
         sqlx::query!(
-            "UPDATE radcheck SET username = ?, value = ? WHERE username = ?",
+            "UPDATE radcheck SET username = ?, value = COALESCE(?, value) WHERE username = ?",
             booking.room_number,
             booking.password,
             old_room

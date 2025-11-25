@@ -9,7 +9,26 @@ use std::sync::Arc;
 
 #[endpoint(
     tags("Params"),
-    description = "Handle PMS requests for check-in, check-out, and room updates",
+    description = r#"
+        Handle PMS requests:
+        - Check-in
+        - Check-out
+        - Room / Guest updates
+
+        Standard params VHP:
+        - mode (checkin|checkout|update)
+        - room (String)
+        - pass (String)
+        - cidate (25/12/2025)
+        - codate (26/12/2025)
+        - cotime (13:00:00)
+        - oldroom (String) only for update mode
+        - gtype (0)
+        
+        Optional params:
+        - name (String)
+        - rvno (String)
+    "#,
     parameters(PmsQueryParams),
     responses(
         (status_code = 200, body = PmsResponse, description = "success", example = json!({
