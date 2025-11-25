@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 salvo = { version = "0.80.0", features = ["oapi"] }
-tokio = { version = "1", features = ["macros"] }
+tokio = { version = "1", features = ["macros","process","rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
@@ -17,4 +17,5 @@ anyhow = "1.0"
 thiserror = "1.0"
 dotenvy = "0.15"
 async-trait = "0.1"
+tokio-cron-scheduler = "0.15"
 once_cell = "1.18"

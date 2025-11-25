@@ -4,6 +4,7 @@ use presentation::routes::router;
 use salvo::prelude::*;
 use std::env;
 
+use crate::application::tasks::disconnect_pool::start_disconnect_scheduler;
 use crate::application::utils::logger::init_logger;
 
 mod application;
@@ -21,6 +22,10 @@ async fn main() {
     init_db_pool(&database_url)
         .await
         .expect("Failed to init DB Pool");
+
+    tokio::spawn(async {
+        start_disconnect_scheduler().await.unwrap();
+    });
 
     let app_port = std::env::var("APP_PORT")
         .ok()
