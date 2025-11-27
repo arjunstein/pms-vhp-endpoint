@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use chrono::Local;
 use sqlx::{MySql, MySqlPool, Transaction};
 
+#[derive(Clone)]
 pub struct MySqlBookingRepository {
     pub pool: MySqlPool,
 }
@@ -86,6 +87,21 @@ impl BookingRepository for MySqlBookingRepository {
         .execute(&mut *tx)
         .await?;
 
+        let online_rooms = self.get_online_rooms(&booking.room_number).await?;
+
+        // Insert online rooms into disconnect pool
+        if !online_rooms.is_empty() {
+            tracing::info!(
+                "{} online rooms send to disconnect_pool | {}",
+                online_rooms.len(),
+                booking.room_number,
+            );
+            for (username, nas_ip, framed_ip) in &online_rooms {
+                self.insert_into_disconnect_pool(&username, &framed_ip, &nas_ip)
+                    .await?;
+            }
+        }
+
         // Commit transaction
         tx.commit().await?;
         Ok(())
@@ -158,5 +174,73 @@ impl BookingRepository for MySqlBookingRepository {
                 .await?;
 
         Ok(count > 0)
+    }
+
+    async fn get_pending_disconnects(&self) -> Result<Vec<(String, String, String)>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT username, ip, nas_ip 
+            FROM disconnect_pool 
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| (r.username, r.ip, r.nas_ip))
+            .collect())
+    }
+
+    async fn delete_disconnect_record(&self, username: &str, ip: &str) -> Result<()> {
+        sqlx::query!(
+            "DELETE FROM disconnect_pool WHERE username = ? AND ip = ?",
+            username,
+            ip
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn get_online_rooms(&self, room: &str) -> Result<Vec<(String, String, String)>> {
+        let rows = sqlx::query!(
+            r#"
+        SELECT username, nasipaddress, framedipaddress
+        FROM radacct
+        WHERE username = ? 
+        AND acctstoptime IS NULL
+        "#,
+            room
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| (r.username, r.nasipaddress, r.framedipaddress))
+            .collect())
+    }
+
+    async fn insert_into_disconnect_pool(
+        &self,
+        username: &str,
+        ip: &str,
+        nas_ip: &str,
+    ) -> Result<()> {
+        sqlx::query!(
+            r#"
+        INSERT INTO disconnect_pool (username, ip, nas_ip)
+        VALUES (?, ?, ?)
+        "#,
+            username,
+            ip,
+            nas_ip
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 }

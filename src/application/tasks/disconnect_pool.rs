@@ -1,16 +1,21 @@
-use sqlx::{query, query_as};
 use tokio::process::Command;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{error, info};
 
+use crate::domain::repositories::BookingRepository;
 use crate::infrastructure::database::db_pool;
+use crate::infrastructure::repositories::MySqlBookingRepository;
 
 pub async fn start_disconnect_scheduler() -> anyhow::Result<()> {
-    let sched = JobScheduler::new().await?;
+    let repo = MySqlBookingRepository {
+        pool: db_pool().clone(),
+    };
 
-    let job = Job::new_async("0 */30 * * * *", |_uuid, _l| {
+    let sched = JobScheduler::new().await?;
+    let job = Job::new_async("*/30 * * * * *", move |_uuid, _l| {
+        let repo = repo.clone(); // important!
         Box::pin(async move {
-            if let Err(e) = run_disconnect().await {
+            if let Err(e) = run_disconnect(&repo).await {
                 error!("DISCONNECT_CRON ERROR | {}", e);
             }
         })
@@ -18,24 +23,21 @@ pub async fn start_disconnect_scheduler() -> anyhow::Result<()> {
 
     sched.add(job).await?;
     sched.start().await?;
-
     Ok(())
 }
 
-async fn run_disconnect() -> Result<(), String> {
-    let pool = db_pool();
-
-    let junks: Vec<(String, String, String)> =
-        query_as("SELECT username, ip, nas_ip FROM disconnect_pool")
-            .fetch_all(pool)
-            .await
-            .map_err(|e| e.to_string())?;
+async fn run_disconnect(repo: &dyn BookingRepository) -> Result<(), String> {
+    let junks = repo
+        .get_pending_disconnects()
+        .await
+        .map_err(|e| e.to_string())?;
 
     if junks.is_empty() {
         return Ok(());
     }
 
-    let secret_row: Option<(String,)> = query_as("SELECT secret FROM nas LIMIT 1")
+    let pool = db_pool();
+    let secret_row: Option<(String,)> = sqlx::query_as("SELECT secret FROM nas LIMIT 1")
         .fetch_optional(pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -45,7 +47,7 @@ async fn run_disconnect() -> Result<(), String> {
         None => return Err("NAS secret not found".into()),
     };
 
-    // loop user
+    // 🔹 Loop disconnect process
     for (username, ip, nas_ip) in junks {
         let cmd_str = format!(
             r#"echo "Framed-IP-Address={}" | /usr/bin/radclient {}:1700 disconnect {}"#,
@@ -60,10 +62,7 @@ async fn run_disconnect() -> Result<(), String> {
             .map_err(|e| e.to_string())?;
 
         if output.status.success() {
-            query("DELETE FROM disconnect_pool WHERE username = ? AND ip = ?")
-                .bind(&username)
-                .bind(&ip)
-                .execute(pool)
+            repo.delete_disconnect_record(&username, &ip)
                 .await
                 .map_err(|e| e.to_string())?;
 
