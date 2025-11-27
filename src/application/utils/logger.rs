@@ -43,12 +43,12 @@ pub fn init_logger() {
         .with_target(false);
 
     // CONSOLE
+    #[cfg(debug_assertions)]
     let console_layer = fmt::layer()
         .with_writer(std::io::stdout)
         .with_timer(LocalTimer)
         .with_target(false);
 
-    // 🔥 GABUNG semua layer —> init SEKALI SAJA!
     tracing_subscriber::registry()
         .with(console_layer)
         .with(layer_api)
